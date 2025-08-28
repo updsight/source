@@ -34,7 +34,18 @@ This phase is run on the host machine:
 - **DNS Hijacking Simulation -- Domain-Tracer**: Run `python Domain-Tracer.py` to simulate DNS redirection by spoofing domain resolutions. A whitelist file `allowed_hosts.txt` is used to exclude certain domains (e.g., `chocolatey.org`) from redirection.
 - **HTTP/HTTPS Proxy Setup -- MitM-Insight**: Run `fake80.exe` and `fake443.exe` to act as transparent MITM proxies for HTTP and HTTPS traffic respectively. These tools log intercepted traffic into `http.txt` and `https.txt`, see if the software violates rule R1, validate transport security, and save original update payloads to the `download/` folder.
 - **Automated Payload Replacement -- Response-Crafter**:
-  - Based on MIME-type detection, intercepted files are matched to replacements under the `fake/` directory (e.g., `1.zip`, `1.exe`, `1.7z`).
+  - Upon intercepting an update payload, the tool inspects its MIME type and attempts to substitute it with a crafted file from the fake/ directory. The following file types are supported:
+  ```
+  application/x-dosexec → 1.exe (Windows executables)
+  application/zip → 1.zip
+  application/x-7z-compressed → 1.7z
+  application/x-tar → 1.tar
+  application/gzip → 1.gz
+  application/x-bzip2 → 1.bz2
+  application/vnd.ms-cab-compressed → 1.cab
+  application/vnd.ms-opentype → 1.msi
+  text/xml → 1.xml
+  ```
   - If no match is found, the original intercepted file from `download/` is returned.
   - Manual editing of files in `download/` is also supported for fine-grained tampering, check here if the software violates rule R2.
 
@@ -47,4 +58,4 @@ This phase is executed inside the virtual machine:
 - **Execution Detection**: `python Exploit-Validator.py` monitors the system to check whether a forged `.exe` file (specified via its MD5 hash) was executed. A successful execution indicates a remote code execution (RCE) vulnerability.
 - **Path Traversal Detection**: The tool requires crafted archive files containing payloads with paths like ../../cve.txt and ../cve.txt. These archives must be placed in the corresponding fake/ directory and renamed to 1.zip, 1.7z, or other appropriate formats. During extraction, if multiple cve.txt files appear across different directories, this indicates a path traversal attack, as only one such file should be present under normal conditions.
 - **Result Logging and Inference**: All results are logged and summarized, with rule violations (R3–R4) inferred based on execution evidence.
-"""
+
