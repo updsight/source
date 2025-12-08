@@ -4,13 +4,16 @@ import subprocess
 import win32service
 import win32serviceutil
 import win32com.client
+import psutil
 
-# 集合记录
 seen_exe = set()
 seen_tasks = set()
 seen_services = set()
 
-# 1. 扫描当前目录及子目录 exe
+# ------------------------
+# Executables
+# ------------------------
+
 def scan_exe(root="."):
     new_exe = []
     for dirpath, _, files in os.walk(root):
@@ -21,16 +24,35 @@ def scan_exe(root="."):
                     new_exe.append(full_path)
     return new_exe
 
-# 运行 exe
+
 def run_exe(path):
     try:
-        print(f"[EXE] 运行: {path}")
-        subprocess.Popen(path, shell=True)
+        print(f"[EXE] Running: {path}")
+        proc = subprocess.Popen(path, shell=True)
         seen_exe.add(path)
-    except Exception as e:
-        print(f"[EXE] 运行失败 {path}: {e}")
 
-# 2. 计划任务
+        time.sleep(20)
+        stop_exe(proc)
+
+    except Exception as e:
+        print(f"[EXE] Failed: {path}: {e}")
+
+
+def stop_exe(proc):
+    try:
+        print(f"[EXE] Terminating PID {proc.pid}")
+        proc.terminate()
+        time.sleep(2)
+        if proc.poll() is None:
+            proc.kill()
+    except Exception as e:
+        print(f"[EXE] Terminate error: {e}")
+
+
+# ------------------------
+# Scheduled Tasks
+# ------------------------
+
 def scan_tasks():
     scheduler = win32com.client.Dispatch("Schedule.Service")
     scheduler.Connect()
@@ -48,15 +70,32 @@ def scan_tasks():
     recurse(rootFolder)
     return tasks
 
+
 def run_task(name):
     try:
-        print(f"[TASK] 运行任务: {name}")
+        print(f"[TASK] Running task: {name}")
         subprocess.run(["schtasks", "/Run", "/TN", name], check=False)
         seen_tasks.add(name)
-    except Exception as e:
-        print(f"[TASK] 运行失败 {name}: {e}")
 
-# 3. 服务
+        time.sleep(20)
+        stop_task(name)
+
+    except Exception as e:
+        print(f"[TASK] Run failed {name}: {e}")
+
+
+def stop_task(name):
+    try:
+        print(f"[TASK] Stopping task: {name}")
+        subprocess.run(["schtasks", "/End", "/TN", name], check=False)
+    except Exception as e:
+        print(f"[TASK] Stop error {name}: {e}")
+
+
+# ------------------------
+# Services
+# ------------------------
+
 def scan_services():
     services = []
     hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ENUMERATE_SERVICE)
@@ -66,29 +105,46 @@ def scan_services():
             services.append(svc_name)
     return services
 
+
 def run_service(name):
     try:
-        print(f"[SERVICE] 启动服务: {name}")
+        print(f"[SERVICE] Starting: {name}")
         win32serviceutil.StartService(name)
         seen_services.add(name)
-    except Exception as e:
-        print(f"[SERVICE] 启动失败 {name}: {e}")
 
-# 主循环
+        time.sleep(20)
+        stop_service(name)
+
+    except Exception as e:
+        print(f"[SERVICE] Start failed {name}: {e}")
+
+
+def stop_service(name):
+    try:
+        print(f"[SERVICE] Stopping: {name}")
+        win32serviceutil.StopService(name)
+    except Exception as e:
+        print(f"[SERVICE] Stop error {name}: {e}")
+
+
+# ------------------------
+# Main Loop
+# ------------------------
+
 if __name__ == "__main__":
-    print("🔍 开始监控 exe / 计划任务 / 服务 ...")
+    print("Monitoring exe / tasks / services ...")
 
     while True:
         # exe
         for exe in scan_exe("."):
             run_exe(exe)
 
-        # task
+        # tasks
         for task in scan_tasks():
             run_task(task)
 
-        # service
+        # services
         for svc in scan_services():
             run_service(svc)
 
-        time.sleep(10)  # 每 10 秒扫描一次
+        time.sleep(10)
