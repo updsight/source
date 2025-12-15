@@ -2,13 +2,17 @@
 
 ## Abstract
 
-Desktop software has become an essential component of modern computing, and software updates are the primary mechanism to patch vulnerabilities and deliver security fixes. However, the update process itself introduces new attack surfaces, particularly when validation of update data is incomplete or improperly enforced. Nevertheless, these risks in desktop updates are less studied because most update clients are closed-source and complex.
 
-We present Updsight, a black-box framework that tests update security by simulating MitM attacks in realistic settings. Updsight operates by emulating man-in-the-middle scenarios, intercepting traffic during the update process, and automatically validating the presence of critical weaknesses. By combining traffic interception, payload integrity inspection, and behavior monitoring, Updsight provides a comprehensive assessment of update trust models across diverse software categories.
+Desktop software has become an essential component of modern computing, and software updates are the primary mechanism to patch vulnerabilities and deliver security fixes. However, the update process itself introduces new attack surfaces, particularly when validation of update data is incomplete or improperly enforced. Nevertheless, these risks in desktop updates are less studied because most update clients are closed-source and complex. 
 
-We adopted Updsight to 120 widely-used desktop applications. The results show 20 exploitable vulnerabilities, including downgrade, manifest manipulation, installer hijack, and path traversal. Among these, 9 have been confirmed by vendors, and 4 are in the process of receiving CVEs.
+We present UpdSight, a black-box framework that tests update security by simulating MitM attacks in realistic settings. UpdSight operates by emulating man-in-the-middle scenarios, intercepting traffic during the update process, and automatically validating the presence of critical weaknesses. By combining traffic interception, payload integrity inspection, and behavior monitoring, UpdSight provides a comprehensive assessment of update trust models across diverse software categories. 
 
-Our findings highlight recurring design flaws, such as unsigned manifests and weak rollback checks, which allow attackers to gain code execution through the update channel.
+We adopted UpdSight to 85 widely-used desktop applications. The results show 22 exploitable vulnerabilities, including downgrade, manifest manipulation, installer hijack, and path traversal. Among these, 16 have been confirmed by vendors. In addition, 5 CVE identifiers were assigned, covering vulnerabilities in 8 software products. Our findings highlight recurring design flaws, such as unsigned manifests and weak rollback checks, which allow attackers to gain code execution through the update channel.
+
+## Disclaimer
+
+This framework and associated files are intended for academic research and security evaluation purposes only.  
+Do not use these tools for unauthorized testing or malicious activities. The authors are not responsible for any misuse.
 
 
 # Evaluation Workflow Overview
@@ -47,7 +51,8 @@ This phase is run on the host machine:
   text/xml → 1.xml
   ```
   - If no match is found, the original intercepted file from `download/` is returned.
-  - Manual editing of files in `download/` is also supported for fine-grained tampering, check here if the software violates rule R2.
+  - Manual editing of files in `download/` is also supported for fine-grained tampering.
+  - The requests in the privacy.txt are more related to the update profile request, check here if the software violates rule R2. If the software violates, the software is vulnerable to AT5 attacks.
 
 ---
 
@@ -59,3 +64,91 @@ This phase is executed inside the virtual machine:
 - **Path Traversal Detection**: The tool requires crafted archive files containing payloads with paths like ../../cve.txt and ../cve.txt. These archives must be placed in the corresponding fake/ directory and renamed to 1.zip, 1.7z, or other appropriate formats. During extraction, if multiple cve.txt files appear across different directories, this indicates a path traversal attack, as only one such file should be present under normal conditions.
 - **Result Logging and Inference**: All results are logged and summarized, with rule violations (R3–R4) inferred based on execution evidence.
 
+
+## Attack Surface Evaluation Criteria
+
+### AT1: Information Disclosure
+
+The framework caches all intercepted traffic.
+
+Procedure:
+- Search all cached files for sensitive information such as:
+  - Cookies
+  - Email addresses (e.g., 11111@outlook.com)
+  - Plaintext credentials or tokens
+
+Presence of such data indicates susceptibility to AT1.
+
+---
+
+### AT2: Downgrade Attack
+
+Procedure:
+- Confirm the software is **not vulnerable to AT3**
+- Replace `fake/1.exe` with an **older legitimate installer version**
+- Re-run the update process
+- Observe:
+  - Software behavior
+  - Output from `Exploit-Validator.py`  
+
+If the software accepts and installs the older version, it is vulnerable to AT2.
+
+---
+
+### AT3: Installer Hijacking
+
+Procedure:
+- Place a crafted binary into `fake/1.exe`
+- Trigger the update process
+- Observe:
+  - Software behavior
+  - Output from `Exploit-Validator.py`
+
+Successful execution indicates installer hijacking.
+
+---
+
+### AT4: Path Traversal
+
+Procedure:
+- Prepare archives containing:
+  - `../../cve.txt`
+  - `../cve.txt`
+- Place them into `fake/` (e.g., `1.zip`, `1.7z`)
+- Trigger the update and extraction process
+- Observe:
+  - Software behavior
+  - Output from Exploit-Validator.py
+  - File system inspection using [Everything](https://www.voidtools.com/zh-cn/support/everything)
+
+If traversal files are written outside the intended directory, AT4 is confirmed.
+
+---
+
+### AT5: Manifest Manipulation Attack
+
+Procedure:
+- Manually inspect update profile requests in `privacy.txt`
+- Locate the corresponding file in `download/`
+- Modify the manifest fields, for example:
+```json
+{
+  "files": [
+    {
+      "path": "\\",
+      "md5": "<replace with MD5 of 1.exe>",
+      "name": "app.exe",
+      "size": "<replace with size of 1.exe>",
+      "url": "<replace with attacker-controlled URL>",
+      "version": "<increase version number>"
+    }
+  ]
+}
+```
+- The modified version number must exceed the installed version
+- Resume the update process
+
+Remaining steps are identical to AT3.
+
+
+---
