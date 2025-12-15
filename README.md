@@ -27,7 +27,9 @@ This phase is conducted inside a virtual machine (VM):
 
 - **Proxy Configuration**: The system-wide proxy is set to the host machine’s IP address and port `8888`, allowing all outbound traffic to be intercepted on the host.
 - **Automated Installation**: Applications are installed using [Chocolatey](https://chocolatey.org/) or manual installers. Most installations default to `Program Files`, and the `Update-Initiator.py` is placed one directory above the installation path.
+- **Install Python Dependencies**: Run `pip install -r requirements.txt` to install all necessary Python packages.
 - **Triggering Updates -- Update-Initiator**: `python Update-Initiator.py` automatically scans for newly added executables, system services, and scheduled tasks. It attempts to launch these components to trigger post-installation updates or background downloads.
+
 
 ---
 
