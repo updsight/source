@@ -77,6 +77,12 @@ Procedure:
   - Email addresses (e.g., 11111@outlook.com)
   - Plaintext credentials or tokens
 
+- Observe:
+  - Detection results reported by executing `python Scan.py`
+  - Files containing sensitive patterns, identifiable via text search tools
+    (e.g., [vscode](https://code.visualstudio.com/))
+
+
 Presence of such data indicates susceptibility to AT1.
 
 ---
@@ -85,7 +91,7 @@ Presence of such data indicates susceptibility to AT1.
 
 Procedure:
 - Confirm the software is **not vulnerable to AT3**
-- Replace `fake/1.exe` with an **older legitimate installer version**
+- Replace `fake/1.exe` with an older legitimate installer version
 - Re-run the update process
 - Observe:
   - Software behavior
