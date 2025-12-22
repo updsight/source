@@ -1,3 +1,5 @@
+**Artifact available on Zenodo:** https://zenodo.org/records/17982402
+
 # When Updates Backfire: A Black-Box Security Analysis of Desktop Software Update Mechanisms
 
 ## Abstract
